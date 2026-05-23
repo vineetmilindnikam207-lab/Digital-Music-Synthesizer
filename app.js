@@ -14,7 +14,6 @@ function playTestSound() {
 
     // 4. Connect the oscillator directly to the destination (Speakers)
     oscillator.connect(audioCtx.destination);
-
     // 5. Start generating sound immediately
     oscillator.start();
 
