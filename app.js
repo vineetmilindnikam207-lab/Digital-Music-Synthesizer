@@ -18,9 +18,9 @@ const delayFeedbackControl = document.getElementById('delayFeedback');
 const delayTimeDisplay = document.getElementById('delayTimeValue');
 const feedbackDisplay = document.getElementById('feedbackValue');
 
-// Safe checks to update value labels on screen when sliders move
+// Update value labels on screen when sliders move
 if(filterFreqControl) { filterFreqControl.addEventListener('input', () => { freqValueDisplay.textContent = `${filterFreqControl.value} Hz`; }); }
-if(filterQControl) { filterQControl.addEventListener('input', () => { qValueDisplay.textContent = filterQControl.value; }); }
+if(filterQControl) { filterQControl.addEventListener('input', () => { qValueDisplay.textContent = parseFloat(filterQControl.value).toFixed(1); }); }
 if(delayTimeControl) { delayTimeControl.addEventListener('input', () => { delayTimeDisplay.textContent = `${parseFloat(delayTimeControl.value).toFixed(2)} s`; }); }
 if(delayFeedbackControl) { delayFeedbackControl.addEventListener('input', () => { feedbackDisplay.textContent = parseFloat(delayFeedbackControl.value).toFixed(2); }); }
 
@@ -31,8 +31,7 @@ const noteFrequencies = {
     'G#4': 415.30, 'A4': 440.00, 'A#4': 466.16, 'B4': 493.88, 'C5': 523.25
 };
 
-// --- NEW/RESTORED KEY BINDINGS MAP ---
-// Maps your computer keyboard keys to the corresponding musical notes
+// Computer laptop keyboard keys layout mapping
 const keyToNoteMap = {
     'a': 'C4',  'w': 'C#4',
     's': 'D4',  'e': 'D#4',
@@ -44,14 +43,14 @@ const keyToNoteMap = {
     'k': 'C5'
 };
 
-// 4. Core Function to play notes through the entire Week 5 audio chain
+// 4. Core Function to play notes through the audio chain
 function playNote(frequency) {
     if (!frequency) return;
 
     // Create fresh nodes for this note instance
     const oscillator = audioCtx.createOscillator();
     const filterNode = audioCtx.createBiquadFilter();
-    const gainNode = audioCtx.createGain(); // Main Volume
+    const gainNode = audioCtx.createGain(); 
     const delayNode = audioCtx.createDelay(1.0); 
     const feedbackGain = audioCtx.createGain();
 
@@ -59,18 +58,18 @@ function playNote(frequency) {
     oscillator.type = waveformControl.value; 
     oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime); 
 
-    // Configure Filter (Fallback values included in case inputs render slow)
+    // Configure Filter
     filterNode.type = filterTypeControl ? filterTypeControl.value : 'lowpass'; 
     filterNode.frequency.setValueAtTime(filterFreqControl ? parseFloat(filterFreqControl.value) : 20000, audioCtx.currentTime);
     filterNode.Q.setValueAtTime(filterQControl ? parseFloat(filterQControl.value) : 1, audioCtx.currentTime);
 
-    // Configure Main Volume / Gain Envelope
+    // Configure Volume / Gain Envelope
     const volumeValue = volumeControl ? parseFloat(volumeControl.value) : 0.5;
     const currentVolume = volumeValue * 0.5;
     gainNode.gain.setValueAtTime(currentVolume, audioCtx.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 1.2);
 
-    // Configure Delay parameters dynamically from inputs
+    // Configure Delay parameters
     const dTime = delayTimeControl ? parseFloat(delayTimeControl.value) : 0.3;
     const dFeedback = delayFeedbackControl ? parseFloat(delayFeedbackControl.value) : 0.4;
     delayNode.delayTime.setValueAtTime(dTime, audioCtx.currentTime);
@@ -79,9 +78,9 @@ function playNote(frequency) {
     // --- AUDIO ROUTING CHAIN ---
     oscillator.connect(filterNode);
     filterNode.connect(gainNode);
-    gainNode.connect(audioCtx.destination); // Direct Clean Sound
+    gainNode.connect(audioCtx.destination); // Direct Clean Path
     
-    gainNode.connect(delayNode);           // Send to Delay unit
+    gainNode.connect(delayNode);           // Send sound to delay
     delayNode.connect(feedbackGain);       // Feedback loop step 1
     feedbackGain.connect(delayNode);       // Feedback loop step 2
     delayNode.connect(audioCtx.destination); // Send Echoes to Speakers
@@ -91,7 +90,7 @@ function playNote(frequency) {
     oscillator.stop(audioCtx.currentTime + 1.2);
 }
 
-// 5. Click event listeners for visual mouse clicks
+// 5. Mouse clicks tracking click event listeners
 document.querySelectorAll('.key').forEach(key => {
     key.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -103,10 +102,9 @@ document.querySelectorAll('.key').forEach(key => {
     });
 });
 
-// --- RESTORED LAPTOP KEYBOARD LISTENERS ---
+// 6. Laptop Keyboard Event Listeners for responsive playback
 window.addEventListener('keydown', (event) => {
-    // Avoid triggering notes if typing inside a control selection dropdown
-    if (event.target.tagName === 'SELECT') return;
+    if (event.target.tagName === 'SELECT' || event.repeat) return;
 
     const keyPressed = event.key.toLowerCase();
     if (keyToNoteMap[keyPressed]) {
@@ -115,9 +113,9 @@ window.addEventListener('keydown', (event) => {
         const noteName = keyToNoteMap[keyPressed];
         const frequency = noteFrequencies[noteName];
         
-        // Visual indicator feedback: highlight the active key on screen
+        // Add professional pressed feedback style class active hook
         const visualKey = document.querySelector(`.key[data-note="${noteName}"]`);
-        if (visualKey) { visualKey.style.opacity = '0.7'; }
+        if (visualKey) { visualKey.classList.add('active-pressed'); }
         
         playNote(frequency);
     }
@@ -128,7 +126,7 @@ window.addEventListener('keyup', (event) => {
     if (keyToNoteMap[keyReleased]) {
         const noteName = keyToNoteMap[keyReleased];
         const visualKey = document.querySelector(`.key[data-note="${noteName}"]`);
-        if (visualKey) { visualKey.style.opacity = '1'; }
+        if (visualKey) { visualKey.classList.remove('active-pressed'); }
     }
 });
 
