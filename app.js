@@ -4,21 +4,18 @@ const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 // 2. Get references to our HTML interface elements
 const volumeControl = document.getElementById('volume');
 const waveformControl = document.getElementById('waveform');
-
-// Filter UI References
 const filterTypeControl = document.getElementById('filterType');
 const filterFreqControl = document.getElementById('filterFreq');
 const filterQControl = document.getElementById('filterQ');
-const freqValueDisplay = document.getElementById('freqValue');
-const qValueDisplay = document.getElementById('qValue');
-
-// Delay UI References
 const delayTimeControl = document.getElementById('delayTime');
 const delayFeedbackControl = document.getElementById('delayFeedback');
+
+const freqValueDisplay = document.getElementById('freqValue');
+const qValueDisplay = document.getElementById('qValue');
 const delayTimeDisplay = document.getElementById('delayTimeValue');
 const feedbackDisplay = document.getElementById('feedbackValue');
 
-// Update value labels on screen when sliders move
+// Real-time UI input rendering updates
 if(filterFreqControl) { filterFreqControl.addEventListener('input', () => { freqValueDisplay.textContent = `${filterFreqControl.value} Hz`; }); }
 if(filterQControl) { filterQControl.addEventListener('input', () => { qValueDisplay.textContent = parseFloat(filterQControl.value).toFixed(1); }); }
 if(delayTimeControl) { delayTimeControl.addEventListener('input', () => { delayTimeDisplay.textContent = `${parseFloat(delayTimeControl.value).toFixed(2)} s`; }); }
@@ -31,21 +28,17 @@ const noteFrequencies = {
     'G#4': 415.30, 'A4': 440.00, 'A#4': 466.16, 'B4': 493.88, 'C5': 523.25
 };
 
-// Computer laptop keyboard keys layout mapping
 const keyToNoteMap = {
-    'a': 'C4',  'w': 'C#4',
-    's': 'D4',  'e': 'D#4',
-    'd': 'E4',
-    'f': 'F4',  't': 'F#4',
-    'g': 'G4',  'y': 'G#4',
-    'h': 'A4',  'u': 'A#4',
-    'j': 'B4',
-    'k': 'C5'
+    'a': 'C4',  'w': 'C#4', 's': 'D4',  'e': 'D#4', 'd': 'E4',
+    'f': 'F4',  't': 'F#4', 'g': 'G4',  'y': 'G#4', 'h': 'A4',  
+    'u': 'A#4', 'j': 'B4',  'k': 'C5'
 };
 
-// 4. Core Function to play notes through the audio chain
+// 4. Core Function to play notes with integrated optimizations
 function playNote(frequency) {
-    if (!frequency) return;
+    if (!frequency || isNaN(frequency)) return; // Bug Fix: Guard against corrupt inputs
+
+    const now = audioCtx.currentTime;
 
     // Create fresh nodes for this note instance
     const oscillator = audioCtx.createOscillator();
@@ -53,71 +46,82 @@ function playNote(frequency) {
     const gainNode = audioCtx.createGain(); 
     const delayNode = audioCtx.createDelay(1.0); 
     const feedbackGain = audioCtx.createGain();
+    
+    // Performance Optimization: Add a DynamicsCompressorNode to prevent digital audio clipping/distortion
+    const limiter = audioCtx.createDynamicsCompressor();
+    limiter.threshold.setValueAtTime(-1.0, now);
+    limiter.knee.setValueAtTime(0.0, now);
+    limiter.ratio.setValueAtTime(20.0, now);
+    limiter.attack.setValueAtTime(0.005, now);
+    limiter.release.setValueAtTime(0.05, now);
 
-    // Configure Oscillator
-    oscillator.type = waveformControl.value; 
-    oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime); 
+    // Configure Oscillator safely
+    oscillator.type = waveformControl ? waveformControl.value : 'sine'; 
+    oscillator.frequency.setValueAtTime(frequency, now); 
 
-    // Configure Filter
+    // Configure Filter with anti-pop parameter smoothing
     filterNode.type = filterTypeControl ? filterTypeControl.value : 'lowpass'; 
-    filterNode.frequency.setValueAtTime(filterFreqControl ? parseFloat(filterFreqControl.value) : 20000, audioCtx.currentTime);
-    filterNode.Q.setValueAtTime(filterQControl ? parseFloat(filterQControl.value) : 1, audioCtx.currentTime);
+    const targetFreq = filterFreqControl ? parseFloat(filterFreqControl.value) : 20000;
+    const targetQ = filterQControl ? parseFloat(filterQControl.value) : 1;
+    // Using setTargetAtTime prevents sudden audio clicking pops when tweaking parameters mid-note
+    filterNode.frequency.setTargetAtTime(targetFreq, now, 0.01);
+    filterNode.Q.setTargetAtTime(targetQ, now, 0.01);
 
-    // Configure Volume / Gain Envelope
+    // Configure Volume Envelope
     const volumeValue = volumeControl ? parseFloat(volumeControl.value) : 0.5;
-    const currentVolume = volumeValue * 0.5;
-    gainNode.gain.setValueAtTime(currentVolume, audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 1.2);
+    const currentVolume = Math.min(Math.max(volumeValue, 0), 1) * 0.5; // Bounds clamping optimization
+    gainNode.gain.setValueAtTime(currentVolume, now);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
 
-    // Configure Delay parameters
+    // Configure Delay parameters safely
     const dTime = delayTimeControl ? parseFloat(delayTimeControl.value) : 0.3;
     const dFeedback = delayFeedbackControl ? parseFloat(delayFeedbackControl.value) : 0.4;
-    delayNode.delayTime.setValueAtTime(dTime, audioCtx.currentTime);
-    feedbackGain.gain.setValueAtTime(dFeedback, audioCtx.currentTime);
+    delayNode.delayTime.setValueAtTime(Math.min(dTime, 1.0), now);
+    feedbackGain.gain.setValueAtTime(Math.min(dFeedback, 0.9), now);
 
-    // --- AUDIO ROUTING CHAIN ---
+    // --- OPTIMIZED ROUTING CHAIN WITH ANTI-CLIPPING LIMITER ---
     oscillator.connect(filterNode);
     filterNode.connect(gainNode);
-    gainNode.connect(audioCtx.destination); // Direct Clean Path
     
-    gainNode.connect(delayNode);           // Send sound to delay
-    delayNode.connect(feedbackGain);       // Feedback loop step 1
-    feedbackGain.connect(delayNode);       // Feedback loop step 2
-    delayNode.connect(audioCtx.destination); // Send Echoes to Speakers
+    // Direct Signal to Limiter -> Output
+    gainNode.connect(limiter);
     
-    // Trigger playback
-    oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 1.2);
+    // Delay Feedback Loop
+    gainNode.connect(delayNode);           
+    delayNode.connect(feedbackGain);       
+    feedbackGain.connect(delayNode);       
+    
+    // Delay Signal to Limiter -> Output
+    delayNode.connect(limiter);
+    
+    // Final Safe output connection to speakers
+    limiter.connect(audioCtx.destination); 
+    
+    // Trigger clean scheduled playback execution
+    oscillator.start(now);
+    oscillator.stop(now + 1.2);
 }
 
-// 5. Mouse clicks tracking click event listeners
+// 5. Click event listeners for mouse tracking
 document.querySelectorAll('.key').forEach(key => {
     key.addEventListener('click', (event) => {
         event.stopPropagation();
         if (audioCtx.state === 'suspended') { audioCtx.resume(); }
-
         const noteName = key.getAttribute('data-note');
-        const frequency = noteFrequencies[noteName];
-        playNote(frequency);
+        if(noteName) playNote(noteFrequencies[noteName]);
     });
 });
 
-// 6. Laptop Keyboard Event Listeners for responsive playback
+// 6. Laptop Keyboard Event Listeners
 window.addEventListener('keydown', (event) => {
     if (event.target.tagName === 'SELECT' || event.repeat) return;
-
     const keyPressed = event.key.toLowerCase();
     if (keyToNoteMap[keyPressed]) {
         if (audioCtx.state === 'suspended') { audioCtx.resume(); }
-        
         const noteName = keyToNoteMap[keyPressed];
-        const frequency = noteFrequencies[noteName];
-        
-        // Add professional pressed feedback style class active hook
         const visualKey = document.querySelector(`.key[data-note="${noteName}"]`);
         if (visualKey) { visualKey.classList.add('active-pressed'); }
-        
-        playNote(frequency);
+        playNote(noteFrequencies[noteName]);
     }
 });
 
