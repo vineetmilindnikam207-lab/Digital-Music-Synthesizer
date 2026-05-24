@@ -3,96 +3,163 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Audio Synthesizer</title>
+    <title>Virtual Web Synthesizer</title>
     <style>
-        /* A bit of quick styling just to make it readable in your browser */
-        body { font-family: sans-serif; background: #1e1e24; color: #fff; text-align: center; padding: 20px; }
-        .synth-container { max-width: 600px; margin: 0 auto; background: #2a2a35; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        .controls { display: flex; justify-content: space-around; margin: 20px 0; padding: 15px; background: #333344; border-radius: 6px; }
-        .control-group { display: flex; flex-direction: column; align-items: center; }
-        .keyboard { display: flex; justify-content: center; margin-top: 20px; }
-        .key { width: 40px; height: 150px; background: white; color: black; border: 1px solid #ccc; margin: 2px; border-radius: 0 0 4px 4px; cursor: pointer; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 10px; font-weight: bold; }
-        .key.black { width: 30px; height: 90px; background: black; color: white; margin-left: -15px; margin-right: -15px; z-index: 2; }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #121214;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #f0f0f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .synth-container {
+            background-color: #1a1a24;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            width: 100%;
+            max-width: 650px;
+            text-align: center;
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 24px;
+            letter-spacing: 1px;
+            color: #ffffff;
+            margin-bottom: 25px;
+        }
+
+        h3 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #8a8ab3;
+            margin: 15px 0 10px 0;
+            text-align: left;
+        }
+
+        .controls {
+            background-color: #222230;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            text-align: left;
+        }
+
+        label {
+            font-size: 13px;
+            color: #b0b0d1;
+        }
+
+        input[type="range"], select {
+            width: 100%;
+            padding: 8px;
+            background-color: #121214;
+            border: 1px solid #3a3a52;
+            border-radius: 6px;
+            color: #fff;
+            outline: none;
+        }
+
+        span {
+            font-size: 12px;
+            color: #00adb5;
+            font-weight: bold;
+            margin-top: -4px;
+            margin-bottom: 8px;
+        }
+
+        /* Basic inline layout helper for minor alignment */
+        .keyboard {
+            display: flex;
+            justify-content: center;
+            background-color: #121214;
+            padding: 20px;
+            border-radius: 8px;
+            gap: 4px;
+        }
+
+        /* Standard rendering fallback for keys */
+        .key {
+            background-color: #ffffff;
+            color: #000;
+            padding: 15px 10px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+            flex: 1;
+            text-align: center;
+        }
+
+        .key.black {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
     </style>
 </head>
 <body>
 
-    <h1>Virtual Web Synthesizer</h1>
-    
     <div class="synth-container">
+        <h1>Virtual Web Synthesizer</h1>
+
         <div class="controls">
             <div class="control-group">
-                <label for="volume">Master Volume</label>
-                <input type="range" id="volume" min="0" max="1" step="0.1" value="0.5">
-            </div>
-            
-            <div class="control-group">
-                <label for="waveform">Waveform</label>
+                <h3>Master Settings</h3>
+                <label for="volume">Master Volume:</label>
+                <input type="range" id="volume" min="0" max="1" value="0.5" step="0.01">
+
+                <label for="waveform">Waveform:</label>
                 <select id="waveform">
                     <option value="sine">Sine</option>
                     <option value="square">Square</option>
                     <option value="sawtooth">Sawtooth</option>
                     <option value="triangle">Triangle</option>
                 </select>
-                <div class="filter-controls">
-    <h3>Filter Settings</h3>
-    
-    <label for="filterType">Filter Type:</label>
-    <select id="filterType">
-        <option value="lowpass">Low-Pass (Muffle Highs)</option>
-        <option value="highpass">High-Pass (Thin out Lows)</option>
-        <option value="bandpass">Band-Pass (Focus Middle)</option>
-    </select>
 
-    <label for="filterFreq">Cutoff Frequency (Hz):</label>
-    <input type="range" id="filterFreq" min="20" max="20000" value="20000" step="1">
-    <span id="freqValue">20000 Hz</span>
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #3a3a52;">
 
-    <label for="filterQ">Q-Factor (Resonance):</label>
-    <input type="range" id="filterQ" min="0.0001" max="20" value="1" step="0.1">
-    <span id="qValue">1</span>
-</div>
+                <h3>Filter Settings</h3>
+                <label for="filterType">Filter Type:</label>
+                <select id="filterType">
+                    <option value="lowpass">Low-Pass (Muffle Highs)</option>
+                    <option value="highpass">High-Pass (Thin out Lows)</option>
+                    <option value="bandpass">Band-Pass (Focus Middle)</option>
+                </select>
+
+                <label for="filterFreq">Cutoff Frequency (Hz):</label>
+                <input type="range" id="filterFreq" min="20" max="20000" value="20000" step="1">
+                <span id="freqValue">20000 Hz</span>
+
+                <label for="filterQ">Q-Factor (Resonance):</label>
+                <input type="range" id="filterQ" min="0.0001" max="20" value="1" step="0.1">
+                <span id="qValue">1</span>
+
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #3a3a52;">
+
+                <h3>Delay (Echo) Settings</h3>
+                <label for="delayTime">Delay Time (Seconds):</label>
+                <input type="range" id="delayTime" min="0" max="1" value="0.3" step="0.05">
+                <span id="delayTimeValue">0.30 s</span>
+
+                <label for="delayFeedback">Feedback (Echo Repeats):</label>
+                <input type="range" id="delayFeedback" min="0" max="0.9" value="0.4" step="0.05">
+                <span id="feedbackValue">0.40</span>
             </div>
         </div>
-<div class="synth-container">
-    <div class="controls">
-        
-        <div class="control-group">
-            <label for="filterType">Filter Type:</label>
-            <select id="filterType">
-                <option value="lowpass">Low-Pass (Muffle Highs)</option>
-                <option value="highpass">High-Pass (Thin out Lows)</option>
-                <option value="bandpass">Band-Pass (Focus Middle)</option>
-            </select>
 
-            <label for="filterFreq">Cutoff Frequency (Hz):</label>
-            <input type="range" id="filterFreq" min="20" max="20000" value="20000" step="1">
-            <span id="freqValue">20000 Hz</span>
-
-            <label for="filterQ">Q-Factor (Resonance):</label>
-            <input type="range" id="filterQ" min="0.0001" max="20" value="1" step="0.1">
-            <span id="qValue">1</span>
-            
-            <hr>
-
-            <h3>Keybindings Guide</h3>
-            <ul>
-                <li><strong>A</strong> = C4</li>
-                <li><strong>W</strong> = C#4</li>
-                <li><strong>S</strong> = D4</li>
-                <li><strong>E</strong> = D#4</li>
-                <li><strong>D</strong> = E4</li>
-                <li><strong>F</strong> = F4</li>
-                <li><strong>T</strong> = F#4</li>
-                <li><strong>G</strong> = G4</li>
-                <li><strong>Y</strong> = G#4</li>
-                <li><strong>H</strong> = A4</li>
-                <li><strong>U</strong> = A#4</li>
-                <li><strong>J</strong> = B4</li>
-                <li><strong>K</strong> = C5</li>
-            </ul>
-        </div> 
-    </div>
         <div class="keyboard">
             <div class="key" data-note="C4">C</div>
             <div class="key black" data-note="C#4">C#</div>
@@ -109,6 +176,7 @@
             <div class="key" data-note="C5">C</div>
         </div>
     </div>
-<script src="app.js"></script>
+
+    <script src="app.js"></script>
 </body>
 </html>
